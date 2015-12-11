@@ -89,7 +89,7 @@ public class ImageTager {
         //_rand.nextFloat();
 
         param.addTextInfo(new ReleatePositionDrawTextItem("编号："+numCode,font_color,font_shadow_color,str_font,10, 0.2f,0.01f,0.1f));
-        param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,10, 0.2f,0.85f,0.1f));
+        param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,10, 0.2f,0.7f,0.1f));
         ImageRender dr = new DrawTextRender(InputImageStream, param);
         try {
             dr.render();
