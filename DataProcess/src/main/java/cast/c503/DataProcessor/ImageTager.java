@@ -10,6 +10,11 @@ import com.alibaba.simpleimage.io.ByteArrayOutputStream;
 import com.alibaba.simpleimage.render.*;
 import com.sun.deploy.util.StringUtils;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -87,24 +92,66 @@ public class ImageTager {
         float pos_height = 0.9f;
         float pos_width = 0.7f;
         //_rand.nextFloat();
+        BufferedImage bi = null ;
 
+
+        ImageRender dr = null;
         param.addTextInfo(new ReleatePositionDrawTextItem("编号："+numCode,font_color,font_shadow_color,str_font,10, 0.2f,0.01f,0.1f));
         param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,10, 0.2f,0.7f,0.1f));
-        ImageRender dr = new DrawTextRender(InputImageStream, param);
         try {
-            dr.render();
+            bi =ReadIMGFORMATStream(InputImageStream,"jp2");
+            dr = new DrawTextRender(new ImageWrapper(bi), param);
+        } catch (Exception e) {
+            dr = new DrawTextRender(InputImageStream,param);
+        }
+
+
+        try {
+            bi = dr.render().getAsBufferedImage();
         } catch (SimpleImageException e) {
             e.printStackTrace();
         }
-        ImageRender wr = null;
+        MakeIMGFORMATStream(bi,outputStream,"jp2");
+
+//        ImageRender wr = null;
+//        try {
+//            wr = new WriteRender(dr, outputStream, ImageFormat.JPEG);
+//            wr.render();
+//            wr.dispose();
+//        } catch (SimpleImageException e) {
+//            e.printStackTrace();
+//        }
+
+    }
+
+    public BufferedImage ReadIMGFORMATStream(InputStream inputStream,String formatSuffix) throws IOException {
+        ImageReader reader = ImageIO.getImageReadersBySuffix(formatSuffix).next();
+        ImageInputStream imageInputStream = new MemoryCacheImageInputStream(inputStream);
+        reader.setInput(imageInputStream);
+        BufferedImage bi = null;
+
+        bi = reader.read(0);
+        return bi;
+    }
+
+    public void MakeIMGFORMATStream(BufferedImage bufferedImage,OutputStream outputStream,String formatSuffix){
+        ImageWriter writer = ImageIO.getImageWritersBySuffix(formatSuffix).next();
+        ImageOutputStream imageOutputStream = null;
+        imageOutputStream = new MemoryCacheImageOutputStream(outputStream);
+        writer.setOutput(imageOutputStream);
         try {
-            wr = new WriteRender(dr, outputStream, ImageFormat.JPEG);
-            wr.render();
-            wr.dispose();
-        } catch (SimpleImageException e) {
+            writer.write(null, new IIOImage(bufferedImage, null, null), null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            imageOutputStream.flush();
+            outputStream.flush();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
+        writer.dispose();
     }
 
 }
