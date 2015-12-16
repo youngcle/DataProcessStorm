@@ -34,8 +34,9 @@ import java.util.LinkedList;
 public class CompressedDataPackage extends DataPackageBase {
 
 
-
-
+    public CompressedDataPackage(String payloadName) {
+        super(payloadName);
+    }
 
     @Override
     public boolean SetPayloads(ArrayList<byte[]> payloads) {

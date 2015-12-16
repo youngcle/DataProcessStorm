@@ -3,6 +3,7 @@ package cast.c503.DataProcessor;
 
 import cast.c503.DataPackage.DataPackageBase;
 import cast.c503.TaskAgents.TaskParamBase;
+import jdk.internal.util.xml.impl.Input;
 import sun.awt.image.ImageWatched;
 
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ public abstract class DataProcessorBase {
     String ProcessName;
     String version;
     String workingMode;
-    boolean debugMode = true;
+    boolean debugMode = false;
     String workingDir;
 
 
@@ -26,7 +27,7 @@ public abstract class DataProcessorBase {
 
     DataProcessorBase(){
 
-        System.out.println("Creating DataProcessor Modual");
+//        System.out.println("Creating DataProcessor Modual");
     }
 
 
@@ -52,6 +53,12 @@ public abstract class DataProcessorBase {
 
     public void setInputDataPackages(ArrayList<DataPackageBase> inputDataPackages) {
         InputDataPackages = inputDataPackages;
+    }
+
+    public void addInputDataPackage(DataPackageBase inputDataPackage) {
+        if(InputDataPackages==null)
+            InputDataPackages = new ArrayList<DataPackageBase>();
+        InputDataPackages.add(inputDataPackage);
     }
 
     public ArrayList<DataPackageBase> getOutputDataPackages() {

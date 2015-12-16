@@ -44,10 +44,11 @@ N-1	Integer	-1234567890	标准TCP-IP帧尾
 public class DemodRawDataPackage extends DataPackageBase {
     byte[] PackageHeadCode= new byte[4];
 
-    public DemodRawDataPackage(){
-//        this.Payloads = new LinkedList<char[]>();
-    }
 
+
+    public DemodRawDataPackage(String payloadName) {
+        super(payloadName);
+    }
 
 
     public boolean SetPayloads(ArrayList<byte[]> payloads) {

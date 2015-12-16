@@ -7,6 +7,7 @@ import com.sun.corba.se.impl.oa.toa.TOA;
 import com.sun.corba.se.spi.ior.Writeable;
 import com.sun.deploy.util.ArrayUtil;
 import com.sun.media.jai.opimage.FileStoreRIF;
+import com.sun.org.apache.xml.internal.security.utils.JavaUtils;
 import org.apache.commons.io.FileUtils;
 
 import java.awt.*;
@@ -21,6 +22,7 @@ import java.util.*;
 import java.util.zip.*;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.SystemUtils;
 import redis.clients.jedis.BinaryJedis;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.Jedis;
@@ -101,7 +103,7 @@ public class SimulateDataGenerator {
 
             for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_CCD, "CCD", i, "red");
-                String zipname = TargetPath + File.separator + "CCD" + i + ".jp2";
+                String zipname = TargetPath + File.separator + "CCD_" + i + ".jp2";
                 try {
                     gzipFile(zipname);
                 } catch (IOException e) {
@@ -113,7 +115,7 @@ public class SimulateDataGenerator {
 
             for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_HSIIRS, "HSIIRS", i, "green");
-                String zipname = TargetPath + File.separator + "HSIIRS" + i + ".jp2";
+                String zipname = TargetPath + File.separator + "HSIIRS_" + i + ".jp2";
                 try {
                     gzipFile(zipname);
                 } catch (IOException e) {
@@ -123,7 +125,7 @@ public class SimulateDataGenerator {
 
             for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_IRS, "IRS", i, "blue");
-                String zipname = TargetPath + File.separator + "IRS" + i + ".jp2";
+                String zipname = TargetPath + File.separator + "IRS_" + i + ".jp2";
                 try {
                     gzipFile(zipname);
                 } catch (IOException e) {
@@ -132,7 +134,7 @@ public class SimulateDataGenerator {
             }
             for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_HSICCD, "HSICCD", i, "orange");
-                String zipname = TargetPath + File.separator + "HSICCD" + i + ".jp2";
+                String zipname = TargetPath + File.separator + "HSICCD_" + i + ".jp2";
                 try {
                     gzipFile(zipname);
                 } catch (IOException e) {
@@ -142,11 +144,11 @@ public class SimulateDataGenerator {
 
             for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 java.util.List<String> fileslisttozip = new LinkedList<String>();
-                String ccdname = TargetPath + File.separator + "CCD" + i + ".jp2.gz";
-                String IRSname = TargetPath + File.separator + "IRS" + i + ".jp2.gz";
-                String HSIIRSname = TargetPath + File.separator + "HSIIRS" + i + ".jp2.gz";
-                String HSICCDname = TargetPath + File.separator + "HSICCD" + i + ".jp2.gz";
-                String ZIPPackName = TargetPath + File.separator + "PACK" + i;
+                String ccdname = TargetPath + File.separator + "CCD_" + i + ".jp2.gz";
+                String IRSname = TargetPath + File.separator + "IRS_" + i + ".jp2.gz";
+                String HSIIRSname = TargetPath + File.separator + "HSIIRS_" + i + ".jp2.gz";
+                String HSICCDname = TargetPath + File.separator + "HSICCD_" + i + ".jp2.gz";
+                String ZIPPackName = TargetPath + File.separator + "PACK_" + i;
                 fileslisttozip.add(ccdname);
                 fileslisttozip.add(IRSname);
                 fileslisttozip.add(HSIIRSname);
@@ -235,7 +237,7 @@ public class SimulateDataGenerator {
 //IRS
         File inputfile = new File(tempStr);
 
-        File outputfile= new File(TargetPath+File.separator+tagText+nmCode+".jp2");
+        File outputfile= new File(TargetPath+File.separator+tagText+"_"+nmCode+".jp2");
 
         ImageTager it = new ImageTager();
         it.setInputImageFile(inputfile);
@@ -256,9 +258,10 @@ public class SimulateDataGenerator {
         long datasize = 0;
         int round = 100;
         System.out.println("start to putting the binary data(in memory) to redis");
-        System.out.println("file size(KB):"+filesize/1024+"   round ="+round);
+        System.out.println("file size(Byte):"+filesize+"   round ="+round);
+        ByteBuffer buffer = ByteBuffer.allocate(4);
         for(int i=0;i<round;i++) {
-            File inputfile= new File(TargetPath+File.separator+"PACK"+i+".zip");
+            File inputfile= new File(TargetPath+File.separator+"PACK_"+i+".zip");
             ByteBuffer bb = ByteBuffer.allocate((int) inputfile.length());
             try {
                 FileChannel fileChannel = new FileInputStream(inputfile).getChannel();
@@ -266,7 +269,9 @@ public class SimulateDataGenerator {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-                jedis.lpush("DATA:PACK".getBytes(), bb.array());
+            jedis.rpush("DATA:PACK".getBytes(), bb.array());
+            buffer.clear();
+            jedis.rpush("DATA:PACKID".getBytes(),buffer.putInt(i).array());
             datasize +=bb.array().length;
         }
 
@@ -284,11 +289,11 @@ public class SimulateDataGenerator {
         System.out.println("start to popping the binary data(in memory) to redis");
         long timepassed = System.currentTimeMillis();
         byte[] bytesfromjedis =null;
-        int round = 100;
+        int round = 300;
         long datasize = 0;
         for(int i=0;i<round;i++) {
             File Outputfile= new File(TargetPath+File.separator+"PACK_back"+i+".zip");
-            bytesfromjedis = jedis.lpop(("DATA:PACK").getBytes());
+            bytesfromjedis = jedis.rpop(("DATA:PACK").getBytes());
             long filesize = bytesfromjedis.length;
             ByteBuffer bb = ByteBuffer.wrap(bytesfromjedis);
             try {
@@ -298,6 +303,13 @@ public class SimulateDataGenerator {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+
+            buffer.put(jedis.rpop("DATA:PACKID".getBytes()));
+            buffer.flip();
+            buffer.getInt();
+
             datasize +=filesize;
         }
         timepassed -= System.currentTimeMillis();
@@ -309,7 +321,7 @@ public class SimulateDataGenerator {
 
 
     void PushToRAM(){
-        File inputfile= new File(TargetPath+File.separator+"PACK0"+".zip");
+        File inputfile= new File(TargetPath+File.separator+"PACK_0"+".zip");
         ByteBuffer bb = ByteBuffer.allocate((int) inputfile.length());
         try {
             FileChannel fileChannel = new FileInputStream(inputfile).getChannel();
@@ -330,7 +342,6 @@ public class SimulateDataGenerator {
         for(int i=0;i<round;i++) {
             System.arraycopy(bb.array(),0,outbytearray,0,bb.capacity());
 
-
         }
         datasize =filesize*round;
         timepassed -= System.currentTimeMillis();
@@ -341,10 +352,10 @@ public class SimulateDataGenerator {
     }
 
     public static void main(String[] args) throws Exception {
-        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(100,"zip","/dev/shm");
+        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(100,"zip","/data/simdata/");
 //        simulateDataGenerator.DoGenerateData();
-//        simulateDataGenerator.PushToJedis();
-        simulateDataGenerator.PopFromJedis();
+        simulateDataGenerator.PushToJedis();
+//        simulateDataGenerator.PopFromJedis();
 //        simulateDataGenerator.PushToRAM();
     }
 }

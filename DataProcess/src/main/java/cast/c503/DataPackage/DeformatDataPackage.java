@@ -36,6 +36,11 @@ import java.util.LinkedList;
  */
 public class DeformatDataPackage extends DataPackageBase{
 
+
+    public DeformatDataPackage(String payloadName) {
+        super(payloadName);
+    }
+
     @Override
     public boolean SetPayloads(ArrayList<byte[]> payloads) {
         Payloads = payloads;
