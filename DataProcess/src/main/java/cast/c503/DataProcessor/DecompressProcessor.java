@@ -7,7 +7,12 @@ package cast.c503.DataProcessor;
 import cast.c503.DataPackage.DataPackageBase;
 import cast.c503.DataPackage.DeformatDataPackage;
 import com.github.jaiimageio.impl.plugins.raw.RawImageWriteParam;
+import com.github.jaiimageio.impl.plugins.raw.RawImageWriter;
+import com.github.jaiimageio.impl.plugins.raw.RawImageWriterSpi;
 import com.github.jaiimageio.jpeg2000.*;
+import com.github.jaiimageio.jpeg2000.impl.J2KImageReader;
+import com.github.jaiimageio.jpeg2000.impl.J2KImageReaderSpi;
+
 import javax.imageio.*;
 
         import javax.imageio.ImageWriter;
@@ -23,23 +28,28 @@ import java.util.Map;
 public class DecompressProcessor extends DataProcessorBase{
 
     static String BasePath = "/run/media/yanghl/77b85fda-c795-4518-b551-cd0bde3131e5/youngcle/DataProcessStormNew/DataProcess/src/main/resources";
-    ByteBuffer RawByteBuffer = ByteBuffer.allocate(1024*1024*2) ;
-
+    ByteBuffer RawByteBuffer = ByteBuffer.allocateDirect(1024*1024*2);//两兆缓存
+    ImageReader reader;
     public  DecompressProcessor(){
         super();
-        System.out.println("Creating DataProcessor Modual");
+        System.out.println("Creating Decompress DataProcessor Modual");
+        reader = new J2KImageReader(new J2KImageReaderSpi());//ImageIO.getImageReadersBySuffix("jp2").next();
+        J2KImageReadParam readParams = (J2KImageReadParam) reader.getDefaultReadParam();
+//        ImageIO.scanForPlugins();
+        for (String spi:ImageIO.getWriterFormatNames())
+            System.out.println("format spi plugins:"+spi);
+
     }
 
     @Override
     public boolean  InitializeDataProcess(){
         System.out.println("Initializing DataProcessor Modual");
+
         return true;
     }
     @Override
     public boolean DoDataProcess() {
 
-        ImageReader reader = ImageIO.getImageReadersBySuffix("jp2").next();
-        J2KImageReadParam readParams = (J2KImageReadParam) reader.getDefaultReadParam();
 
 
         for (int j = 0; j < InputDataPackages.size(); j++) {
@@ -67,7 +77,8 @@ public class DecompressProcessor extends DataProcessorBase{
                     e.printStackTrace();
                 }
 
-                ImageWriter writer = ImageIO.getImageWritersByFormatName("raw").next();
+                ImageWriter writer;//ImageIO.getImageWritersByFormatName("raw").next();
+                writer = new RawImageWriter(new RawImageWriterSpi());
 
                 ImageOutputStream imageOutputStream = null;
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -85,7 +96,7 @@ public class DecompressProcessor extends DataProcessorBase{
 
 
                 writer.dispose();
-                DataPackageBase dataPackageBaseOutput_RAW =new DataPackageBase(dataPackageBaseInput.getPayloadName()+"_decom");
+                DataPackageBase dataPackageBaseOutput_RAW =new DataPackageBase(dataPackageBaseInput.getPayloadName()+"_DECOMPRESSED");
                 dataPackageBaseOutput_RAW.setPackageNumCode(NumCode);
                 dataPackageBaseOutput_RAW.addPayloadBuffer(NumCode,ByteBuffer.wrap(baos.toByteArray()));
                 OutputDataPackages.add(dataPackageBaseOutput_RAW);

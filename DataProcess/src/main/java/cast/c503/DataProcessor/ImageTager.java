@@ -8,12 +8,11 @@ import com.alibaba.simpleimage.font.FontLoader;
 import com.alibaba.simpleimage.io.ByteArrayInputStream;
 import com.alibaba.simpleimage.io.ByteArrayOutputStream;
 import com.alibaba.simpleimage.render.*;
+import com.github.jaiimageio.impl.plugins.raw.RawImageReader;
+import com.github.jaiimageio.impl.plugins.raw.RawImageReaderSpi;
 import com.sun.deploy.util.StringUtils;
 
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.ImageWriter;
+import javax.imageio.*;
 import javax.imageio.stream.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -123,6 +122,65 @@ public class ImageTager {
 //        }
 
     }
+
+    public void DoImageTag(OutputStream outputStream, String tagtext,String colorstr,String codeStr){
+        PROCESS_STRING = tagtext;
+        font_color = StringColorMap.get(colorstr);
+
+        DrawTextParameter param = new DrawTextParameter();
+        Random _rand = new Random();
+        float size_width = 0.2f;
+        float pos_height = _rand.nextFloat();
+        float pos_width = _rand.nextFloat();
+        BufferedImage bi = null ;
+
+
+        ImageRender dr = null;
+        param.addTextInfo(new ReleatePositionDrawTextItem("编号："+codeStr,font_color,font_shadow_color,str_font,10, 0.2f,pos_height,pos_width));
+        param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,10, 0.2f,pos_height,pos_width));
+        try {
+            bi =ReadIMGFORMATStream(InputImageStream,"raw");
+            dr = new DrawTextRender(new ImageWrapper(bi), param);
+        } catch (Exception e) {
+            dr = new DrawTextRender(InputImageStream,param);
+        }
+
+
+        try {
+            bi = dr.render().getAsBufferedImage();
+        } catch (SimpleImageException e) {
+            e.printStackTrace();
+        }
+        MakeIMGFORMATStream(bi,outputStream,"jp2");
+
+//        ImageRender wr = null;
+//        try {
+//            wr = new WriteRender(dr, outputStream, ImageFormat.JPEG);
+//            wr.render();
+//            wr.dispose();
+//        } catch (SimpleImageException e) {
+//            e.printStackTrace();
+//        }
+
+    }
+
+
+
+    public BufferedImage ReadRawIMGStream(InputStream inputStream) throws IOException {
+        RawImageReader reader = new RawImageReader(new RawImageReaderSpi());
+        ImageReadParam param = new ImageReadParam();
+//        param.setSourceRenderSize(1024*480);
+//        param.;
+//        param.setSourceRenderSize;
+
+        ImageInputStream imageInputStream = new MemoryCacheImageInputStream(inputStream);
+        reader.setInput(imageInputStream);
+        BufferedImage bi = null;
+
+        bi = reader.read(0);
+        return bi;
+    }
+
 
     public BufferedImage ReadIMGFORMATStream(InputStream inputStream,String formatSuffix) throws IOException {
         ImageReader reader = ImageIO.getImageReadersBySuffix(formatSuffix).next();

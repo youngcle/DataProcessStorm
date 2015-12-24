@@ -60,10 +60,12 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 public class SimulateDataGenerator {
 
     int TargetCount = DEFAULT_TARGETCOUNT;
+    int TargetStartNum = DEFAULT_STARTNUM;
     int TotalCount = DEFAULT_TARGETCOUNT;
     String PackageType;
     String TargetPath;
 
+    static int DEFAULT_STARTNUM = 0;
     static int DEFAULT_TARGETCOUNT = 10;
     static String DEFAULT_PackageType = "zip";
     static String DEFAULT_TARGETPATH = "/data/simdata";
@@ -81,10 +83,11 @@ public class SimulateDataGenerator {
 
     }
 
-    public SimulateDataGenerator(int targetCount,String packageType,String targetPath){
+    public SimulateDataGenerator(int targetStartNum,int targetCount,String packageType,String targetPath){
         TotalCount = targetCount;
         PackageType = packageType;
         TargetPath = targetPath;
+        TargetStartNum = targetStartNum;
 
 
     }
@@ -101,7 +104,7 @@ public class SimulateDataGenerator {
             }else
                 endroundflag = 0;
 
-            for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
+            for (int i = TargetStartNum+k * DEFAULT_TARGETCOUNT; i < TargetStartNum+((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_CCD, "CCD", i, "red");
                 String zipname = TargetPath + File.separator + "CCD_" + i + ".jp2";
                 try {
@@ -113,7 +116,7 @@ public class SimulateDataGenerator {
             }
 
 
-            for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
+            for (int i = TargetStartNum+k * DEFAULT_TARGETCOUNT; i < TargetStartNum+((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_HSIIRS, "HSIIRS", i, "green");
                 String zipname = TargetPath + File.separator + "HSIIRS_" + i + ".jp2";
                 try {
@@ -123,7 +126,7 @@ public class SimulateDataGenerator {
                 }
             }
 
-            for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
+            for (int i = TargetStartNum+k * DEFAULT_TARGETCOUNT; i < TargetStartNum+((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_IRS, "IRS", i, "blue");
                 String zipname = TargetPath + File.separator + "IRS_" + i + ".jp2";
                 try {
@@ -132,7 +135,7 @@ public class SimulateDataGenerator {
                     e.printStackTrace();
                 }
             }
-            for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
+            for (int i = TargetStartNum+k * DEFAULT_TARGETCOUNT; i < TargetStartNum+((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 TagFile(Templatefile_HSICCD, "HSICCD", i, "orange");
                 String zipname = TargetPath + File.separator + "HSICCD_" + i + ".jp2";
                 try {
@@ -142,7 +145,7 @@ public class SimulateDataGenerator {
                 }
             }
 
-            for (int i = k * DEFAULT_TARGETCOUNT; i < ((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
+            for (int i = TargetStartNum+k * DEFAULT_TARGETCOUNT; i < TargetStartNum+((k+1-endroundflag)* DEFAULT_TARGETCOUNT+endroundflag*roundleft); i++) {
                 java.util.List<String> fileslisttozip = new LinkedList<String>();
                 String ccdname = TargetPath + File.separator + "CCD_" + i + ".jp2.gz";
                 String IRSname = TargetPath + File.separator + "IRS_" + i + ".jp2.gz";
@@ -253,34 +256,80 @@ public class SimulateDataGenerator {
 
     void PushToJedis(){
         BinaryJedis jedis = new Jedis("localhost");
-        long timepassed = System.currentTimeMillis();
+        long timeStart = System.currentTimeMillis();
+        long timepassed = 0;
         long filesize = 0;
         long datasize = 0;
-        int round = 100;
+        float targetSpeed = 20000;//kb/s byte/ms
+        long redisListLengthBar = 100;
+        int round = 1000;
+        long roundtimeStart =0;
         System.out.println("start to putting the binary data(in memory) to redis");
         System.out.println("file size(Byte):"+filesize+"   round ="+round);
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        for(int i=0;i<round;i++) {
-            File inputfile= new File(TargetPath+File.separator+"PACK_"+i+".zip");
-            ByteBuffer bb = ByteBuffer.allocate((int) inputfile.length());
-            try {
-                FileChannel fileChannel = new FileInputStream(inputfile).getChannel();
-                fileChannel.read(bb);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            jedis.rpush("DATA:PACK".getBytes(), bb.array());
-            buffer.clear();
-            jedis.rpush("DATA:PACKID".getBytes(),buffer.putInt(i).array());
-            datasize +=bb.array().length;
-        }
+        long packcount = 0;
+        long chkdatasize=0;
+        long listlenth = 0;
+        long gloabletimetosleep = 0;
+//        while(true) {
+            for (int i = 0; i < round; i++) {
+                File inputfile = new File(TargetPath + File.separator + "PACK_" + i + ".zip");
+                ByteBuffer bb = ByteBuffer.allocate((int) inputfile.length());
+                try {
+                    FileChannel fileChannel = new FileInputStream(inputfile).getChannel();
+                    fileChannel.read(bb);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                jedis.rpush("DATA:PACK".getBytes(), bb.array());
+                buffer.clear();
+                jedis.rpush("DATA:PACKID".getBytes(), buffer.putInt(i).array());
+                chkdatasize += bb.array().length;
+                datasize += bb.array().length;
+                if((i%10)== 0) {
+                    long roundtimeStop = System.currentTimeMillis();
+                    long roundtimePassed = roundtimeStop - roundtimeStart;
+                    roundtimeStart = System.currentTimeMillis();
+                    long targetroundtime = (long) (chkdatasize / targetSpeed);
+                    chkdatasize = 0;
+                    long timetosleep = targetroundtime - roundtimePassed;
+                    if (timetosleep > 0) {
+                        try {
+                            Thread.currentThread().sleep(timetosleep);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
 
-        timepassed -= System.currentTimeMillis();
-        System.out.println("data pushed(KB):"+datasize/1024);
-        System.out.println("time elasped(s):"+timepassed);
-        System.out.println("push speed(KB/S):"+datasize/timepassed);
+
+                    timepassed = System.currentTimeMillis() - timeStart ;
+                    System.out.println("data pushed(KB):"+datasize/1024);
+                    System.out.println("time elasped(s):"+timepassed);
+                    System.out.println("push speed(KB/S):"+(float)datasize/(float)timepassed);
+                    System.out.println("data pack pushed into redis:"+packcount);
+                    long redisListLenth = jedis.llen("DATA:PACKID".getBytes());
+                    System.out.println("data pack list in redis is:"+redisListLenth);
+
+
+                }
+                packcount++;
+                long redisListLenth = jedis.llen("DATA:PACKID".getBytes());
+                if (redisListLengthBar > 1000) break;
+                while(redisListLenth > redisListLengthBar){
+//                    System.out.println("data pack in redis is not processed in time! length:"+redisListLenth);
+                    try {
+                        Thread.sleep(30);
+                        redisListLenth = jedis.llen("DATA:PACKID".getBytes());
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+//        }
+
+
         jedis.close();
-//        client.close();
     }
 
     void PopFromJedis(){
@@ -352,7 +401,7 @@ public class SimulateDataGenerator {
     }
 
     public static void main(String[] args) throws Exception {
-        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(100,"zip","/data/simdata/");
+        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(5000,50000,"zip","/data/simdata/");
 //        simulateDataGenerator.DoGenerateData();
         simulateDataGenerator.PushToJedis();
 //        simulateDataGenerator.PopFromJedis();

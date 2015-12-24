@@ -39,7 +39,7 @@ public class TestMain {
 
 
 
-        for(int i=0;i<48;i++) {
+        for(int i=0;i<0;i++) {
             new Thread(new Runnable() {
 
                 public void run() {
@@ -200,9 +200,10 @@ public class TestMain {
 
 //            System.out.println("Thread "+i+" is startup!");
         }
-
-        ProcessFrame pf = new ProcessFrame();
-        pf.PopFromJedisAnd();
+        for(int i=0;i<20;i++) {
+            ProcessFrame pf = new ProcessFrame("process--"+i+"--");
+            new Thread(pf).start();
+        }
 
 
 //        for(DataPackageBase dpb:outputPackagelist){

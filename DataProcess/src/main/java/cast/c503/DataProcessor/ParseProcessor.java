@@ -95,10 +95,10 @@ public class ParseProcessor extends DataProcessorBase {
                 unzipThePack(payloadBuffer,unpackPayloads, unpackPayloadsNumcodeArray);
 
                 //构建输出DataPackage,每包输出四个载荷包，因此构建四个。
-                DataPackageBase dataPackageBaseOutput_CCD =new DataPackageBase("CCD");
-                DataPackageBase dataPackageBaseOutput_IRS =new DataPackageBase("IRS");
-                DataPackageBase dataPackageBaseOutput_HSIIRS =new DataPackageBase("HSIIRS");
-                DataPackageBase dataPackageBaseOutput_HSICCD =new DataPackageBase("HSICCD");
+                DataPackageBase dataPackageBaseOutput_CCD =new DataPackageBase("CCD_COMPRESSED");
+                DataPackageBase dataPackageBaseOutput_IRS =new DataPackageBase("IRS_COMPRESSED");
+                DataPackageBase dataPackageBaseOutput_HSIIRS =new DataPackageBase("HSIIRS_COMPRESSED");
+                DataPackageBase dataPackageBaseOutput_HSICCD =new DataPackageBase("HSICCD_COMPRESSED");
 
 
                 //对unpackPayLoads中每个gz包进行 解压缩处理，解压缩后结果放在ungzBuffer中。
