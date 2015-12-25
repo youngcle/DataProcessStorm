@@ -261,7 +261,7 @@ public class SimulateDataGenerator {
         long filesize = 0;
         long datasize = 0;
         float targetSpeed = 20000;//kb/s byte/ms
-        long redisListLengthBar = 100;
+        long redisListLengthBar = 20;
         int round = 1000;
         long roundtimeStart =0;
         System.out.println("start to putting the binary data(in memory) to redis");
@@ -328,7 +328,8 @@ public class SimulateDataGenerator {
             }
 //        }
 
-
+        jedis.rpush("DATA:PACK".getBytes(), "end".getBytes());
+        jedis.rpush("DATA:PACKID".getBytes(), ByteBuffer.allocate(4).putInt(-1).array());
         jedis.close();
     }
 

@@ -15,5 +15,6 @@
     <orderEntry type="library" name="1.2" level="project" />
     <orderEntry type="library" name="jai-imageio-jpeg2000-1.3.1-SNAPSHOT" level="project" />
     <orderEntry type="library" name="commons-io-1.2" level="project" />
+    <orderEntry type="library" name="it.tidalwave.imageio.raw-1.6.1" level="project" />
   </component>
 </module>

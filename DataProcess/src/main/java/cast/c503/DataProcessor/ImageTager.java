@@ -10,18 +10,21 @@ import com.alibaba.simpleimage.io.ByteArrayOutputStream;
 import com.alibaba.simpleimage.render.*;
 import com.github.jaiimageio.impl.plugins.raw.RawImageReader;
 import com.github.jaiimageio.impl.plugins.raw.RawImageReaderSpi;
+import com.github.jaiimageio.stream.RawImageInputStream;
 import com.sun.deploy.util.StringUtils;
+import com.sun.javafx.iio.ImageStorage;
+import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
 import javax.imageio.*;
 import javax.imageio.stream.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.SortedMap;
-
+import java.nio.*;
+import java.nio.channels.Channels;
+import java.util.*;
+import java.util.List;
 
 
 /**
@@ -123,27 +126,29 @@ public class ImageTager {
 
     }
 
-    public void DoImageTag(OutputStream outputStream, String tagtext,String colorstr,String codeStr){
+    public void DoRawImageTagAndSubsample(OutputStream outputStream, String tagtext,String colorstr,String codeStr,int width,int height){
         PROCESS_STRING = tagtext;
         font_color = StringColorMap.get(colorstr);
 
         DrawTextParameter param = new DrawTextParameter();
         Random _rand = new Random();
         float size_width = 0.2f;
-        float pos_height = _rand.nextFloat();
-        float pos_width = _rand.nextFloat();
+        float pos_height = 0.5f;
+        float pos_width = 0.5f;
         BufferedImage bi = null ;
 
 
+
         ImageRender dr = null;
-        param.addTextInfo(new ReleatePositionDrawTextItem("编号："+codeStr,font_color,font_shadow_color,str_font,10, 0.2f,pos_height,pos_width));
-        param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,10, 0.2f,pos_height,pos_width));
+        param.addTextInfo(new ReleatePositionDrawTextItem("编号："+codeStr,font_color,font_shadow_color,str_font,60, 0.6f,pos_height,pos_width));
+        param.addTextInfo(new ReleatePositionDrawTextItem("类型："+tagtext,font_color,font_shadow_color,str_font,60, 0.6f,pos_height+0.1f,pos_width));
+        ImageTypeSpecifier its = ImageTypeSpecifier.createGrayscale(8, DataBuffer.TYPE_BYTE,false);
         try {
-            bi =ReadIMGFORMATStream(InputImageStream,"raw");
-            dr = new DrawTextRender(new ImageWrapper(bi), param);
-        } catch (Exception e) {
-            dr = new DrawTextRender(InputImageStream,param);
+            bi =ReadRawIMGStreamToByteGray(InputImageStream,its,width,height);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        dr = new DrawTextRender(new ImageWrapper(bi), param);
 
 
         try {
@@ -151,7 +156,7 @@ public class ImageTager {
         } catch (SimpleImageException e) {
             e.printStackTrace();
         }
-        MakeIMGFORMATStream(bi,outputStream,"jp2");
+        MakeIMGFORMATStream(bi,outputStream,"PNG");
 
 //        ImageRender wr = null;
 //        try {
@@ -166,18 +171,79 @@ public class ImageTager {
 
 
 
-    public BufferedImage ReadRawIMGStream(InputStream inputStream) throws IOException {
+    public BufferedImage ReadRawIMGStreamToByteGray(InputStream inputStream,ImageTypeSpecifier its,int width,int height) throws IOException {
+        ShortBuffer shortBuffer = ShortBuffer.allocate(width*height);
+        ByteBuffer bb=ByteBuffer.allocate(width*2*height);
+        bb.order(ByteOrder.BIG_ENDIAN);
+        Channels.newChannel(inputStream).read(bb);
+        bb.flip();
+        byte[] outbytes = new byte[width*height];
+        ByteBuffer outByteBuffer = ByteBuffer.wrap(outbytes);
+        short min = 0,max = 0;
+
+        while (bb.hasRemaining()){
+            short currentByte=0;
+            try{
+                currentByte = bb.getShort();
+            }catch (BufferUnderflowException e){
+                currentByte = 0;
+            }
+            max = (short)Math.max(max,currentByte);
+            min = (short)Math.min(min,currentByte);
+        }
+
+        bb.flip();
+        while(bb.hasRemaining()) {
+            byte tempbyte = 0;
+            short currentByte = 0;
+            try {
+                currentByte = bb.getShort();
+
+            }catch (BufferUnderflowException e){
+                currentByte = 0;
+            }
+            tempbyte = (byte) (((float)(currentByte-min))/(float)(max-min)*256);
+//            tempbyte = (currentByte % 255 == 1) ? (byte) 255 : tempbyte;
+            try {
+                outByteBuffer.put(tempbyte);
+            }catch (BufferOverflowException e){
+
+            }
+        }
+        InputStream is = new  ByteArrayInputStream(outbytes);
+
+
+        ImageTypeSpecifier imageType = null;
+        final ImageTypeSpecifier imageType_Gray16bit = ImageTypeSpecifier.createGrayscale(16,DataBuffer.TYPE_USHORT,false);
+        long[] imageOffsets = new long[1];
+        final long IMAGERAW_OFFSET = 0;
+        imageOffsets[0] = IMAGERAW_OFFSET;
+        Dimension dimension = new Dimension(width,height);
+
+        Dimension[] dimensions = new Dimension[1];
+        dimensions[0] = dimension;
+
+        if(its!=null){
+            imageType = its;
+        } else{
+            imageType = imageType_Gray16bit;
+        }
+
+        //抽样 2:1,转为8bit 灰度图
+
+
+        RawImageInputStream riis = new RawImageInputStream(ImageIO.createImageInputStream(is),its,imageOffsets,dimensions);
+        riis.setByteOrder(ByteOrder.BIG_ENDIAN);
         RawImageReader reader = new RawImageReader(new RawImageReaderSpi());
-        ImageReadParam param = new ImageReadParam();
-//        param.setSourceRenderSize(1024*480);
-//        param.;
-//        param.setSourceRenderSize;
+        reader.setInput(riis);
+        ImageReadParam param  = reader.getDefaultReadParam();
 
-        ImageInputStream imageInputStream = new MemoryCacheImageInputStream(inputStream);
-        reader.setInput(imageInputStream);
-        BufferedImage bi = null;
-
-        bi = reader.read(0);
+//        param.setSourceSubsampling(2,1,0,0);
+//        ImageTypeSpecifier.createGrayscale();
+        final ImageTypeSpecifier imageType_Gray8bit = ImageTypeSpecifier.createGrayscale(8,DataBuffer.TYPE_BYTE,false);
+        param.setDestinationType(imageType_Gray8bit);
+        BufferedImage bi;
+        bi = reader.read(0,param);
         return bi;
     }
 

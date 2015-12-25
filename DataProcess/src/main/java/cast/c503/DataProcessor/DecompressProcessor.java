@@ -36,8 +36,8 @@ public class DecompressProcessor extends DataProcessorBase{
         reader = new J2KImageReader(new J2KImageReaderSpi());//ImageIO.getImageReadersBySuffix("jp2").next();
         J2KImageReadParam readParams = (J2KImageReadParam) reader.getDefaultReadParam();
 //        ImageIO.scanForPlugins();
-        for (String spi:ImageIO.getWriterFormatNames())
-            System.out.println("format spi plugins:"+spi);
+//        for (String spi:ImageIO.getWriterFormatNames())
+//            System.out.println("format spi plugins:"+spi);
 
     }
 
