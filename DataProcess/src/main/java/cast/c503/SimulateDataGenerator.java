@@ -69,8 +69,8 @@ public class SimulateDataGenerator {
     static int DEFAULT_TARGETCOUNT = 10;
     static String DEFAULT_PackageType = "zip";
     static String DEFAULT_TARGETPATH = "/data/simdata";
-    static String BasePath = "/run/media/yanghl/77b85fda-c795-4518-b551-cd0bde3131e5/youngcle/DataProcessStormNew/DataProcess/src/main/resources";
-//    static String BasePath="/home/youngcle/DataProcessStormNew/DataProcess/src/main/resources";
+//    static String BasePath = "/run/media/yanghl/77b85fda-c795-4518-b551-cd0bde3131e5/youngcle/DataProcessStormNew/DataProcess/src/main/resources";
+    static String BasePath="/home/youngcle/DataProcessStormNew/DataProcess/src/main/resources";
     static String Templatefile_CCD = BasePath+File.separator+"CCD.jp2";
     static String Templatefile_HSICCD = BasePath+File.separator+"HSICCD.jp2";
     static String Templatefile_HSIIRS = BasePath+File.separator+"HSIIRS.jp2";
@@ -260,9 +260,9 @@ public class SimulateDataGenerator {
         long timepassed = 0;
         long filesize = 0;
         long datasize = 0;
-        float targetSpeed = 20000;//kb/s byte/ms
-        long redisListLengthBar = 20;
-        int round = 1000;
+        float targetSpeed = 200;//kb/s byte/ms
+        long redisListLengthBar = 3;
+        int round = 400;
         long roundtimeStart =0;
         System.out.println("start to putting the binary data(in memory) to redis");
         System.out.println("file size(Byte):"+filesize+"   round ="+round);
@@ -327,9 +327,14 @@ public class SimulateDataGenerator {
                 }
             }
 //        }
-
-        jedis.rpush("DATA:PACK".getBytes(), "end".getBytes());
-        jedis.rpush("DATA:PACKID".getBytes(), ByteBuffer.allocate(4).putInt(-1).array());
+        System.out.println("It is about to push the end frame in 20 second!");
+        try {
+            Thread.sleep(20000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+//        jedis.rpush("DATA:PACK".getBytes(), "end".getBytes());
+//        jedis.rpush("DATA:PACKID".getBytes(), ByteBuffer.allocate(4).putInt(-1).array());
         jedis.close();
     }
 
@@ -402,7 +407,7 @@ public class SimulateDataGenerator {
     }
 
     public static void main(String[] args) throws Exception {
-        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(5000,50000,"zip","/data/simdata/");
+        SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(450,1000,"zip","/data/simdata/");
 //        simulateDataGenerator.DoGenerateData();
         simulateDataGenerator.PushToJedis();
 //        simulateDataGenerator.PopFromJedis();

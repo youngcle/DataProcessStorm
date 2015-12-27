@@ -33,7 +33,7 @@ import java.util.List;
 public class ImageTager {
     Color font_color        = Color.ORANGE;//new Color(255, 255, 255, 115);
     Color font_shadow_color = new Color(170, 170, 170, 77);
-    Font  str_font              = new Font("kaiti", Font.PLAIN, 10);
+//    Font  str_font              = new Font("kaiti", Font.PLAIN, 10);
     String PROCESS_STRING   = "标签数据";
     final FixDrawTextItem.Position STR_POSITION = FixDrawTextItem.Position.TOP_LEFT;
     File InputImageFile;
@@ -64,15 +64,16 @@ public class ImageTager {
     public void setInputImageStream(InputStream inputImageStream) {
         InputImageStream = new BufferedInputStream(inputImageStream);
     }
-
+    static final Font str_font = new FontLoader("kaiti","/ukai.ttc").getFont();
     public ImageTager(){
-        str_font = new FontLoader("kaiti","/ukai.ttc").getFont();
+
         StringColorMap.put("red", Color.RED);
 
         StringColorMap.put("green", Color.GREEN);
         StringColorMap.put("orange", Color.orange);
         StringColorMap.put("blue", Color.blue);
         StringColorMap.put("black", Color.black);
+        javax.imageio.ImageIO.setUseCache(true);
     }
 
     public void DoImageTag(File outputfile, String tagtext,String colorstr,int numCode){
@@ -251,6 +252,7 @@ public class ImageTager {
     public BufferedImage ReadIMGFORMATStream(InputStream inputStream,String formatSuffix) throws IOException {
         ImageReader reader = ImageIO.getImageReadersBySuffix(formatSuffix).next();
         ImageInputStream imageInputStream = new MemoryCacheImageInputStream(inputStream);
+
         reader.setInput(imageInputStream);
         BufferedImage bi = null;
 
