@@ -1,35 +1,17 @@
 package cast.c503;
 
 import cast.c503.DataProcessor.ImageTager;
-import com.alibaba.simpleimage.io.*;
-import com.alibaba.simpleimage.render.FixDrawTextItem;
-import com.sun.corba.se.impl.oa.toa.TOA;
-import com.sun.corba.se.spi.ior.Writeable;
-import com.sun.deploy.util.ArrayUtil;
-import com.sun.media.jai.opimage.FileStoreRIF;
-import com.sun.org.apache.xml.internal.security.utils.JavaUtils;
 import org.apache.commons.io.FileUtils;
 
-import java.awt.*;
 import java.io.*;
-import java.io.ByteArrayOutputStream;
-import java.lang.annotation.Target;
-import java.lang.reflect.Array;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.zip.*;
 
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.SystemUtils;
 import redis.clients.jedis.BinaryJedis;
-import redis.clients.jedis.Connection;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Protocol.Command;
-import redis.clients.jedis.commands.ProtocolCommand;
-import redis.clients.jedis.exceptions.JedisConnectionException;
+
 /**
  * Created by youngcle on 15-12-6.
  * 创建流式数据处理集群仿真数据
@@ -254,15 +236,15 @@ public class SimulateDataGenerator {
     }
 
 
-    void PushToJedis(){
-        BinaryJedis jedis = new Jedis("localhost");
+    long PushToJedis(int rd){
+        BinaryJedis jedis = new Jedis("pnode01");
         long timeStart = System.currentTimeMillis();
         long timepassed = 0;
         long filesize = 0;
         long datasize = 0;
-        float targetSpeed = 200;//kb/s byte/ms
-        long redisListLengthBar = 3;
-        int round = 400;
+        float targetSpeed = 300000;//kb/s byte/ms
+        long redisListLengthBar = 10000;
+        int round = rd;
         long roundtimeStart =0;
         System.out.println("start to putting the binary data(in memory) to redis");
         System.out.println("file size(Byte):"+filesize+"   round ="+round);
@@ -289,9 +271,11 @@ public class SimulateDataGenerator {
                 if((i%10)== 0) {
                     long roundtimeStop = System.currentTimeMillis();
                     long roundtimePassed = roundtimeStop - roundtimeStart;
-                    roundtimeStart = System.currentTimeMillis();
+
                     long targetroundtime = (long) (chkdatasize / targetSpeed);
                     chkdatasize = 0;
+                    roundtimeStart = System.currentTimeMillis();
+
                     long timetosleep = targetroundtime - roundtimePassed;
                     if (timetosleep > 0) {
                         try {
@@ -301,7 +285,7 @@ public class SimulateDataGenerator {
                         }
                     }
 
-
+                    System.out.println("______________________________");
                     timepassed = System.currentTimeMillis() - timeStart ;
                     System.out.println("data pushed(KB):"+datasize/1024);
                     System.out.println("time elasped(s):"+timepassed);
@@ -314,9 +298,9 @@ public class SimulateDataGenerator {
                 }
                 packcount++;
                 long redisListLenth = jedis.llen("DATA:PACKID".getBytes());
-                if (redisListLengthBar > 1000) break;
+                if (redisListLengthBar > 100000) break;
                 while(redisListLenth > redisListLengthBar){
-//                    System.out.println("data pack in redis is not processed in time! length:"+redisListLenth);
+                    System.out.println("data pack in redis is not processed in time! length:"+redisListLenth);
                     try {
                         Thread.sleep(30);
                         redisListLenth = jedis.llen("DATA:PACKID".getBytes());
@@ -327,37 +311,44 @@ public class SimulateDataGenerator {
                 }
             }
 //        }
-        System.out.println("It is about to push the end frame in 20 second!");
-        try {
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-//        jedis.rpush("DATA:PACK".getBytes(), "end".getBytes());
-//        jedis.rpush("DATA:PACKID".getBytes(), ByteBuffer.allocate(4).putInt(-1).array());
+        System.out.println("It is about to push the end frame in 2 second!");
+//        try {
+//            Thread.sleep(2);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+        jedis.rpush("DATA:PACK".getBytes(), "end".getBytes());
+        jedis.rpush("DATA:PACKID".getBytes(), ByteBuffer.allocate(4).putInt(-1).array());
+        Date startdate = new Date(timeStart);
+        Date stopdate = new Date(System.currentTimeMillis());
+
+
+        System.out.println("started at :"+startdate.toLocaleString());
+        System.out.println("stoped at :"+stopdate.toLocaleString());
         jedis.close();
+        return datasize;
     }
 
     void PopFromJedis(){
-        BinaryJedis jedis = new Jedis("localhost");
+        BinaryJedis jedis = new Jedis("192.168.1.21");
         System.out.println();
         System.out.println("start to popping the binary data(in memory) to redis");
         long timepassed = System.currentTimeMillis();
         byte[] bytesfromjedis =null;
-        int round = 300;
+        int round = 1000;
         long datasize = 0;
         for(int i=0;i<round;i++) {
-            File Outputfile= new File(TargetPath+File.separator+"PACK_back"+i+".zip");
+//            File Outputfile= new File(TargetPath+File.separator+"PACK_back"+i+".zip");
             bytesfromjedis = jedis.rpop(("DATA:PACK").getBytes());
             long filesize = bytesfromjedis.length;
             ByteBuffer bb = ByteBuffer.wrap(bytesfromjedis);
-            try {
-                FileChannel fileChannel = new FileOutputStream(Outputfile).getChannel();
-                fileChannel.write(bb);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+//            try {
+//                FileChannel fileChannel = new FileOutputStream(Outputfile).getChannel();
+//                fileChannel.write(bb);
+//
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
 
             ByteBuffer buffer = ByteBuffer.allocate(4);
 
@@ -406,10 +397,90 @@ public class SimulateDataGenerator {
 //        client.close();
     }
 
+    public void speedtest(){
+
+        BinaryJedis jedis_CCD = new Jedis("vnode01");
+        BinaryJedis jedis_HSICCD = new Jedis("vnode02");
+        BinaryJedis jedis_IRS = new Jedis("pnode01");
+        BinaryJedis jedis_HSIIRS = new Jedis("pnode02");
+
+        jedis_CCD.flushDB();
+        jedis_HSICCD.flushDB();
+        jedis_IRS.flushDB();
+        jedis_HSIIRS.flushDB();
+
+        long starttime = System.currentTimeMillis();
+        long stoptime = System.currentTimeMillis();
+
+        final int round = 1000;
+        long bytespushed = PushToJedis(round);
+
+        long CCD_count = 0;
+        long HSICCD_count =0;
+        long IRS_count=0;
+        long HSIIRS_count=0;
+        boolean end_CCD = false;
+        boolean end_HSICCD = false;
+        boolean end_IRS = false;
+        boolean end_HSIIRS = false;
+
+
+        while(true) {
+            if (CCD_count<round )
+                CCD_count = jedis_CCD.zcard("CCD_COMPRESSED_DECOMPRESSED".getBytes());
+            else if(!end_CCD){
+                end_CCD = true;
+                System.out.println("CCD_Stream process is accomplished(sec):" + (System.currentTimeMillis() - starttime) / 1000);
+            }
+
+            if (HSICCD_count<round)
+                HSICCD_count = jedis_HSICCD.zcard("HSICCD_COMPRESSED_DECOMPRESSED".getBytes());
+            else if(!end_HSICCD){
+                end_CCD = true;
+                System.out.println("HSICCD_Stream process is accomplished(sec):" + (System.currentTimeMillis() - starttime) / 1000);
+            }
+            if (IRS_count<round)
+                IRS_count = jedis_IRS.zcard("IRS_COMPRESSED_DECOMPRESSED".getBytes());
+            else if(!end_IRS){
+                end_IRS = true;
+                System.out.println("IRS_Stream process is accomplished(sec):" + (System.currentTimeMillis() - starttime) / 1000);
+            }
+
+            if (HSIIRS_count<round)
+                HSIIRS_count = jedis_HSIIRS.zcard("HSIIRS_COMPRESSED_DECOMPRESSED".getBytes());
+            else if(!end_HSIIRS){
+                end_HSIIRS = true;
+                System.out.println("HSIIRS_Stream process is accomplished(sec):" + (System.currentTimeMillis() - starttime) / 1000);
+            }
+
+            if((CCD_count>round-1) && (HSICCD_count>round-1) && (IRS_count>round-1) && (HSIIRS_count>round-1)) {
+                stoptime = System.currentTimeMillis();
+                break;
+            }
+            else
+            {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        long elasped = stoptime-starttime;
+        float speed = bytespushed/elasped;
+        System.out.println("Data pushed(KB):"+bytespushed/1024);
+        System.out.println("Data processed during (s):"+elasped/1000);
+        System.out.println("Data processed in speed (KB/s):"+speed);
+        jedis_CCD.close();
+        jedis_HSICCD.close();
+        jedis_IRS.close();
+        jedis_HSIIRS.close();
+    }
     public static void main(String[] args) throws Exception {
         SimulateDataGenerator simulateDataGenerator = new SimulateDataGenerator(450,1000,"zip","/data/simdata/");
 //        simulateDataGenerator.DoGenerateData();
-        simulateDataGenerator.PushToJedis();
+        simulateDataGenerator.speedtest();
+//        simulateDataGenerator.PushToJedis();
 //        simulateDataGenerator.PopFromJedis();
 //        simulateDataGenerator.PushToRAM();
     }

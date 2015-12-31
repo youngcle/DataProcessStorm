@@ -39,7 +39,7 @@ public class ImageTager {
     File InputImageFile;
     InputStream InputImageStream;
     private Map<String,Color> StringColorMap = new HashMap<String, Color>();
-
+    static final Font str_font = new FontLoader("kaiti","/ukai.ttc").getFont();
 
 
     public File getInputImageFile() {
@@ -64,7 +64,7 @@ public class ImageTager {
     public void setInputImageStream(InputStream inputImageStream) {
         InputImageStream = new BufferedInputStream(inputImageStream);
     }
-    static final Font str_font = new FontLoader("kaiti","/ukai.ttc").getFont();
+
     public ImageTager(){
 
         StringColorMap.put("red", Color.RED);
@@ -73,7 +73,7 @@ public class ImageTager {
         StringColorMap.put("orange", Color.orange);
         StringColorMap.put("blue", Color.blue);
         StringColorMap.put("black", Color.black);
-        javax.imageio.ImageIO.setUseCache(true);
+        javax.imageio.ImageIO.setUseCache(false);
     }
 
     public void DoImageTag(File outputfile, String tagtext,String colorstr,int numCode){
